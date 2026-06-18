@@ -63,8 +63,13 @@ def _req(method, url, body=None):
     req.add_header("Authorization", f"Bearer {NOTION_TOKEN}")
     req.add_header("Notion-Version", NOTION_VERSION)
     req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req) as r:
-        return json.loads(r.read().decode())
+    try:
+        with urllib.request.urlopen(req) as r:
+            return json.loads(r.read().decode())
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")
+        print("[Notion API error] %s %s %s\n%s" % (e.code, method, url, detail), file=sys.stderr)
+        raise
 
 def query_db(db_id, sorts=None):
     """データベースの全ページを取得（ページネーション対応）。"""
