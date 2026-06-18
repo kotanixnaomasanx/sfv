@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -5,19 +6,19 @@ Setouchi Factory View — 静的サイトビルダー
 =====================================================
 NotionをCMS（管理画面）として使い、公式Notion APIから内容を取得して
 「このデザインのまま」の複数ページHTMLを public/ に生成します。
-
+​
 GitHub Actions から実行され、生成物（public/）を GitHub Pages へデプロイします。
-
+​
 必要な環境変数（GitHub Secrets / .env）:
   NOTION_TOKEN     : Notionインテグレーションのシークレット (ntn_...)
   NEWS_DB_ID       : 「お知らせ」データベースID
   PAGES_DB_ID      : 「イベント紹介ページ」データベースID
   SCHEDULE_DB_ID   : 「プログラム一覧（スケジュール）」データベースID
-
+​
 使い方:  python3 build.py
 """
 import os, re, sys, json, html, hashlib, mimetypes, pathlib, urllib.parse, urllib.request
-
+​
 # ---------------------------------------------------------------------------
 # 設定
 # ---------------------------------------------------------------------------
@@ -25,14 +26,14 @@ ROOT = pathlib.Path(__file__).resolve().parent
 TPL  = ROOT / "templates" / "index.html"   # 現行トップページ（デザイン・ロゴ埋め込み済み）
 OUT  = ROOT / "public"                      # 出力先（GitHub Pages 公開ディレクトリ）
 IMG  = OUT / "assets" / "img"               # ダウンロード画像の保存先
-
+​
 def clean_id(raw):
     """貼り付けられた値（URL/タイトル付き/ハイフン有無）から32桁のNotion IDだけを取り出す。"""
     raw = (raw or "").strip().split("?")[0]
     compact = raw.replace("-", "")
     m = re.findall(r"[0-9a-fA-F]{32}", compact)
     return m[-1] if m else raw
-
+​
 NOTION_TOKEN   = os.environ.get("NOTION_TOKEN", "")
 NEWS_DB_ID     = os.environ.get("NEWS_DB_ID", "")
 PAGES_DB_ID    = os.environ.get("PAGES_DB_ID", "")
@@ -40,9 +41,9 @@ SCHEDULE_DB_ID = os.environ.get("SCHEDULE_DB_ID", "")
 NEWS_DB_ID     = clean_id(NEWS_DB_ID)
 PAGES_DB_ID    = clean_id(PAGES_DB_ID)
 SCHEDULE_DB_ID = clean_id(SCHEDULE_DB_ID)
-NOTION_VERSION = "2022-06-28"
+NOTION_VERSION = "2025-09-03"
 API = "https://api.notion.com/v1"
-
+​
 # Notion プロパティ名（管理パネルのスキーマと一致させる）
 P = {
     "news_title": "タイトル",   "news_date": "公開日",   "news_cat": "カテゴリ",
@@ -53,7 +54,7 @@ P = {
     "sc_title": "プログラム", "sc_date": "日程", "sc_cat": "カテゴリ",
     "sc_area": "エリア", "sc_venue": "会場", "sc_reserve": "要予約", "sc_fee": "料金",
 }
-
+​
 # ---------------------------------------------------------------------------
 # Notion API ヘルパー
 # ---------------------------------------------------------------------------
@@ -70,7 +71,25 @@ def _req(method, url, body=None):
         detail = e.read().decode("utf-8", "replace")
         print("[Notion API error] %s %s %s\n%s" % (e.code, method, url, detail), file=sys.stderr)
         raise
-
+​
+_DS_CACHE = {}
+def query_url(db_id):
+    """新API（データソース）対応のクエリURLを返す。旧仕様DBにもフォールバック。"""
+    if db_id not in _DS_CACHE:
+        ds_id = None
+        try:
+            d = _req("GET", f"{API}/databases/{db_id}")
+            dss = d.get("data_sources") or []
+            if dss:
+                ds_id = dss[0].get("id")
+        except Exception as e:
+            print("[warn] resolve data source failed for %s: %s" % (db_id, e), file=sys.stderr)
+        _DS_CACHE[db_id] = ds_id
+    ds_id = _DS_CACHE[db_id]
+    if ds_id:
+        return f"{API}/data_sources/{ds_id}/query"
+    return f"{API}/databases/{db_id}/query"
+​
 def query_db(db_id, sorts=None):
     """データベースの全ページを取得（ページネーション対応）。"""
     results, cursor = [], None
@@ -78,14 +97,14 @@ def query_db(db_id, sorts=None):
         body = {"page_size": 100}
         if sorts: body["sorts"] = sorts
         if cursor: body["start_cursor"] = cursor
-        d = _req("POST", f"{API}/databases/{db_id}/query", body)
+        d = _req("POST", query_url(db_id), body)
         results += d.get("results", [])
         if d.get("has_more"):
             cursor = d.get("next_cursor")
         else:
             break
     return results
-
+​
 def get_blocks(block_id):
     """ブロックの子要素を取得（ページネーション対応）。"""
     results, cursor = [], None
@@ -99,35 +118,35 @@ def get_blocks(block_id):
         else:
             break
     return results
-
+​
 # ---------------------------------------------------------------------------
 # プロパティ抽出ヘルパー
 # ---------------------------------------------------------------------------
 def props(page): return page.get("properties", {})
-
+​
 def p_title(pr, name):
     v = pr.get(name, {}).get("title", [])
     return "".join(t.get("plain_text", "") for t in v).strip()
-
+​
 def p_text(pr, name):
     v = pr.get(name, {}).get("rich_text", [])
     return "".join(t.get("plain_text", "") for t in v).strip()
-
+​
 def p_select(pr, name):
     s = pr.get(name, {}).get("select")
     return s.get("name") if s else None
-
+​
 def p_check(pr, name):
     return bool(pr.get(name, {}).get("checkbox"))
-
+​
 def p_number(pr, name):
     return pr.get(name, {}).get("number")
-
+​
 def p_date(pr, name):
     d = pr.get(name, {}).get("date")
     if not d: return (None, None)
     return (d.get("start"), d.get("end"))
-
+​
 def p_files(pr, name):
     out = []
     for f in pr.get(name, {}).get("files", []):
@@ -136,7 +155,7 @@ def p_files(pr, name):
         elif f.get("type") == "external":
             out.append(f["external"]["url"])
     return out
-
+​
 # ---------------------------------------------------------------------------
 # 画像ダウンロード（Notionの画像URLは一時的なのでビルド時に保存）
 # ---------------------------------------------------------------------------
@@ -158,7 +177,7 @@ def download_image(url, prefix="img"):
             print(f"  ! 画像取得失敗: {url[:60]} ({e})", file=sys.stderr)
             return ""
     return f"assets/img/{fname}"
-
+​
 # ---------------------------------------------------------------------------
 # リッチテキスト / ブロック → HTML
 # ---------------------------------------------------------------------------
@@ -176,7 +195,7 @@ def rich_to_html(rich):
         if href: txt = f'<a href="{html.escape(href)}" target="_blank" rel="noopener">{txt}</a>'
         out.append(txt)
     return "".join(out)
-
+​
 def blocks_to_html(blocks, depth="page"):
     """代表的なブロック型をHTML化。連続リスト項目は<ul>/<ol>でまとめる。"""
     out, i = [], 0
@@ -217,14 +236,14 @@ def blocks_to_html(blocks, depth="page"):
                 out.append(f'<figure><img src="{prefix}{rel}" alt="{html.escape(cap)}" loading="lazy">' + (f"<figcaption>{cap}</figcaption>" if cap else "") + "</figure>")
         i += 1
     return "\n".join(out)
-
+​
 # ---------------------------------------------------------------------------
 # テンプレート（トップのheahd/CSSとnav/footerを再利用してサブページを生成）
 # ---------------------------------------------------------------------------
 def extract(tpl, start, end):
     s = tpl.find(start); e = tpl.find(end, s)
     return tpl[s:e+len(end)] if s != -1 and e != -1 else ""
-
+​
 def build_subpage(tpl_html, head_html, title, body_html):
     """サブページ（/news/, /factories/ 配下）用のHTML。トップのCSSを再利用。"""
     nav = extract(tpl_html, '<nav class="sfv-nav">', "</nav>")
@@ -274,12 +293,12 @@ def build_subpage(tpl_html, head_html, title, body_html):
 {foot}
 </body>
 </html>"""
-
+​
 # ---------------------------------------------------------------------------
 # スケジュール → トップページの PROGRAMS を置換
 # ---------------------------------------------------------------------------
 CAT_ORDER = ["工場見学", "体験・ワークショップ", "トーク", "特別", "ショップ"]
-
+​
 def build_index(tpl_html):
     rows = query_db(SCHEDULE_DB_ID, sorts=[{"property": P["sc_date"], "direction": "ascending"}])
     programs = []
@@ -304,7 +323,7 @@ def build_index(tpl_html):
         '<a href="news/">News</a><a href="factories/">紹介ページ</a><a class="sfv-navcta"', 1)
     print(f"  スケジュール: {len(programs)} 件")
     return html_out
-
+​
 # ---------------------------------------------------------------------------
 # お知らせ
 # ---------------------------------------------------------------------------
@@ -336,7 +355,7 @@ def build_news(tpl_html, head_html):
                f'<div class="sfv-grid">{"".join(cards) or "<p>現在お知らせはありません。</p>"}</div>')
     write(OUT / "news" / "index.html", build_subpage(tpl_html, head_html, "News", listing))
     print(f"  お知らせ: {len(pub)} 件公開")
-
+​
 # ---------------------------------------------------------------------------
 # イベント紹介ページ
 # ---------------------------------------------------------------------------
@@ -344,7 +363,7 @@ def slugify(s, fallback):
     s = (s or "").strip().lower()
     s = re.sub(r"[^a-z0-9\-]+", "-", s).strip("-")
     return s or fallback
-
+​
 def build_factories(tpl_html, head_html):
     rows = query_db(PAGES_DB_ID, sorts=[{"property": P["pg_order"], "direction": "ascending"}])
     pub = [p for p in rows if p_check(props(p), P["pg_pub"])]
@@ -379,14 +398,14 @@ def build_factories(tpl_html, head_html):
                f'<div class="sfv-grid">{"".join(cards) or "<p>現在紹介ページはありません。</p>"}</div>')
     write(OUT / "factories" / "index.html", build_subpage(tpl_html, head_html, "紹介ページ", listing))
     print(f"  紹介ページ: {len(pub)} 件公開")
-
+​
 # ---------------------------------------------------------------------------
 # 出力ユーティリティ
 # ---------------------------------------------------------------------------
 def write(path, text):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
-
+​
 def main():
     missing = [k for k, v in {"NOTION_TOKEN": NOTION_TOKEN, "NEWS_DB_ID": NEWS_DB_ID,
                               "PAGES_DB_ID": PAGES_DB_ID, "SCHEDULE_DB_ID": SCHEDULE_DB_ID}.items() if not v]
@@ -404,11 +423,11 @@ def main():
     build_factories(tpl_html, head_inner)
     (OUT / ".nojekyll").write_text("")  # GitHub Pages で _ 始まりファイルを配信
     print("完了: public/ を生成しました。")
-
+​
 if __name__ == "__main__":
     main()
-
-
+​
+​
 # ===========================================================================
 # build_subpage の正規定義（上書き）— テンプレートはトークン置換、CSSは単一波括弧
 # ===========================================================================
@@ -437,7 +456,7 @@ SUBPAGE_CSS = """
 .sfv-gallery img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px}
 @media(max-width:640px){.sfv-sub{padding:96px 18px 64px}}
 """
-
+​
 SUBPAGE_TEMPLATE = """<!doctype html>
 <html lang="ja">
 <head>
@@ -457,7 +476,7 @@ __BODY__
 __FOOT__
 </body>
 </html>"""
-
+​
 def build_subpage(tpl_html, head_html, title, body_html):
     nav = extract(tpl_html, '<nav class="sfv-nav">', "</nav>")
     foot = extract(tpl_html, "<footer", "</footer>")
@@ -474,3 +493,4 @@ def build_subpage(tpl_html, head_html, title, body_html):
     page = page.replace("__BODY__", body_html)
     page = page.replace("__FOOT__", foot)
     return page
+​
