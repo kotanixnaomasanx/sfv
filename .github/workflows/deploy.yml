@@ -1,0 +1,47 @@
+name: Build & Deploy (Notion to GitHub Pages)
+
+# 手動実行（Actionsタブの Run workflow ボタン）でビルドします。
+# 定期実行したい場合は schedule のコメントを外してください。
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '*/30 * * * *'   # 30分ごと
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build site from Notion
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NEWS_DB_ID: ${{ secrets.NEWS_DB_ID }}
+          PAGES_DB_ID: ${{ secrets.PAGES_DB_ID }}
+          SCHEDULE_DB_ID: ${{ secrets.SCHEDULE_DB_ID }}
+        run: python3 build.py
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
