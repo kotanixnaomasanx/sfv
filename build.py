@@ -320,6 +320,11 @@ def build_index(tpl_html):
     html_out = html_out.replace(
         '<a class="sfv-navcta"',
         '<a href="news/">News</a><a href="factories/">紹介ページ</a><a class="sfv-navcta"', 1)
+    # === Notio auto-fix: モバイルでイベント名表示 + 初期表示を週に ===
+    _ov_css = '<style>@media(max-width:720px){.ev-bar{font-size:10px!important;height:18px!important;line-height:18px!important;padding:0 6px!important;border-radius:4px!important;box-shadow:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}.ev-wk-day{min-height:104px!important;}}</style>'
+    html_out = html_out.replace("</head>", _ov_css + "</head>", 1)
+    _ov_js = '<script>document.addEventListener("DOMContentLoaded",function(){try{var PS=new Date(2026,10,PERIOD_START),PE=new Date(2026,10,PERIOD_END);var t=new Date();var ws=weekStart(t);var we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);var inP=!(we<PS||ws>PE);state.view="week";state.ref=inP?t:PS;var vm=document.getElementById("viewMonth"),vw=document.getElementById("viewWeek");if(vm)vm.classList.remove("on");if(vw)vw.classList.add("on");render();}catch(e){}});</script>'
+    html_out = html_out.replace("</body>", _ov_js + "</body>", 1)
     print(f"  スケジュール: {len(programs)} 件")
     return html_out
 
