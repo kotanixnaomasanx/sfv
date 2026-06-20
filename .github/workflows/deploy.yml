@@ -3,6 +3,8 @@ name: Build & Deploy (Notion to GitHub Pages)
 # 手動実行（Actionsタブの Run workflow ボタン）でビルドします。
 # 定期実行したい場合は schedule のコメントを外してください。
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   # schedule:
   #   - cron: '*/30 * * * *'   # 30分ごと
