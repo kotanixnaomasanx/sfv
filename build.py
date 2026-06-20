@@ -290,18 +290,6 @@ def extract(tpl, start, end):
     s = tpl.find(start); e = tpl.find(end, s)
     return tpl[s:e+len(end)] if s != -1 and e != -1 else ""
 
-def build_subpage_legacy(tpl_html, head_html, title, body_html):
-    """（旧）サブページ生成。現在は下部の正規定義を使用。"""
-    nav = extract(tpl_html, '<nav class="sfv-nav">', "</nav>")
-    foot = extract(tpl_html, "<footer", "</footer>")
-    nav = nav.replace('href="#', 'href="../index.html#')
-    nav = nav.replace('href="../index.html#top"', 'href="../index.html"')
-    extra = ('<a href="../news/">News</a>'
-             '<a href="../factories/">紹介ページ</a>')
-    nav = nav.replace('<a class="sfv-navcta"', extra + '<a class="sfv-navcta"')
-    foot = foot.replace('href="#', 'href="../index.html#')
-    return ""
-
 # ---------------------------------------------------------------------------
 # スケジュール → トップページの PROGRAMS を置換
 # ---------------------------------------------------------------------------
@@ -325,10 +313,10 @@ def build_index(tpl_html):
         })
     js = "const PROGRAMS=" + json.dumps(programs, ensure_ascii=False) + ";"
     html_out = re.sub(r"const PROGRAMS=\[.*?\];", lambda m: js, tpl_html, count=1, flags=re.S)
-    # トップのナビに News / 出展企業 / 紹介ページ へのリンクを追加
+    # トップのナビに News / 出展企業 / 紹介ページ へのリンクを追加（出展企業はトップ内セクションへ）
     html_out = html_out.replace(
         '<a class="sfv-navcta"',
-        '<a href="#news">News</a><a href="companies/">出展企業</a><a href="factories/">紹介ページ</a><a class="sfv-navcta"', 1)
+        '<a href="#news">News</a><a href="#companies">出展企業</a><a href="factories/">紹介ページ</a><a class="sfv-navcta"', 1)
     # === Notio: トップページに「お知らせ」ブロックを追加（個別ページへリンク） ===
     news_rows = query_db(NEWS_DB_ID, sorts=[{"property": P["news_date"], "direction": "descending"}])
     news_pub = [p for p in news_rows if p_check(props(p), P["news_pub"])]
@@ -355,6 +343,21 @@ def build_index(tpl_html):
         _news_sec + '<section class="sfv-section" id="concept">', 1)
     _news_css = '<style>.nx-news{border-bottom:1px solid var(--sfv-line,rgba(0,0,0,.08));background:var(--sfv-card,#fff);}.nx-news-wrap{max-width:1120px;margin:0 auto;padding:20px clamp(16px,5vw,48px);}.nx-news-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;}.nx-news-head .k{font-size:12px;letter-spacing:.12em;color:var(--sfv-blue,#3fa0d6);font-weight:700;text-transform:uppercase;}.nx-news-head .t{font-size:14px;font-weight:700;}.nx-news-all{margin-left:auto;font-size:13px;color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;}.nx-news-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}.nx-news-list li{margin:0;border-top:1px solid var(--sfv-line,rgba(0,0,0,.06));}.nx-news-list li:first-child{border-top:0;}.nx-news-list a{display:flex;align-items:baseline;gap:12px;text-decoration:none;color:inherit;padding:8px 0;font-size:14px;line-height:1.6;}.nx-news-list a:hover .nx-t{color:var(--sfv-blue,#3fa0d6);text-decoration:underline;}.nx-d{flex:0 0 auto;color:var(--sfv-ink-soft,#6b6b66);font-size:13px;font-variant-numeric:tabular-nums;min-width:84px;}.nx-c{flex:0 0 auto;font-size:11px;color:var(--sfv-blue-deep,#2f8fc6);border:1px solid var(--sfv-line,rgba(0,0,0,.14));border-radius:999px;padding:1px 9px;}.nx-t{flex:1 1 auto;}.nx-empty{color:var(--sfv-ink-soft,#6b6b66);font-size:14px;padding:8px 0;}@media(max-width:640px){.nx-d{min-width:0;}.nx-news-list a{flex-wrap:wrap;gap:4px 10px;}.nx-t{flex-basis:100%;}}</style>'
     html_out = html_out.replace("</head>", _news_css + "</head>", 1)
+    # === Notio: トップページに「出展企業」セクションを追加（画像・タグ・業種付きカード） ===
+    comp_pub = _exhibitor_published_rows()
+    if comp_pub:
+        _ccards = "".join(_company_card(pg, "companies/", "") for pg in comp_pub[:6])
+        _comp_sec = (
+            '<section class="nx-companies" id="companies"><div class="nx-comp-wrap">'
+            '<div class="nx-comp-head"><span class="k">Exhibitors</span><h2>出展企業</h2>'
+            '<a class="nx-comp-all" href="companies/">すべて見る →</a></div>'
+            f'<div class="sfv-grid">{_ccards}</div>'
+            '</div></section>')
+        html_out = html_out.replace(
+            '<section class="sfv-section" id="concept">',
+            _comp_sec + '<section class="sfv-section" id="concept">', 1)
+        _comp_css = '<style>.nx-companies{background:var(--sfv-tint,#eef5fa);}.nx-comp-wrap{max-width:1120px;margin:0 auto;padding:56px clamp(16px,5vw,48px);}.nx-comp-head{display:flex;align-items:baseline;gap:12px;margin-bottom:24px;}.nx-comp-head .k{font-size:12px;letter-spacing:.12em;color:var(--sfv-blue,#3fa0d6);font-weight:700;text-transform:uppercase;}.nx-comp-head h2{margin:0;font-size:24px;}.nx-comp-all{margin-left:auto;font-size:13px;color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;white-space:nowrap;}.nx-companies .sfv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;}.nx-companies .sfv-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--sfv-line,rgba(0,0,0,.1));border-radius:16px;overflow:hidden;background:var(--sfv-card,#fff);transition:transform .2s,box-shadow .2s;}.nx-companies .sfv-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.10);}.nx-companies .sfv-card .ph{aspect-ratio:4/3;background:var(--sfv-tint,#eef5fa);background-size:cover;background-position:center;}.nx-companies .sfv-card .bd{padding:16px 18px;}.nx-companies .sfv-card h3{margin:0 0 6px;font-size:18px;}.nx-companies .sfv-card p{margin:0;color:var(--sfv-ink-soft,#6b6b66);font-size:14px;line-height:1.6;}.nx-companies .sfv-tag{display:inline-block;font-size:12px;padding:2px 10px;border-radius:999px;background:var(--sfv-tint,#eef5fa);color:var(--sfv-blue-deep,#2f8fc6);margin:0 4px 4px 0;}.nx-companies .sfv-tags{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px;}.nx-companies .sfv-ind{font-size:13px;color:var(--sfv-blue-deep,#2f8fc6);font-weight:600;margin:0 0 6px;}</style>'
+        html_out = html_out.replace("</head>", _comp_css + "</head>", 1)
     # === Notio auto-fix: モバイルでイベント名表示 + 初期表示を週に ===
     _ov_css = '<style>@media(max-width:720px){.ev-bar{font-size:10px!important;height:18px!important;line-height:18px!important;padding:0 6px!important;border-radius:4px!important;box-shadow:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}.ev-wk-day{min-height:104px!important;}}</style>'
     html_out = html_out.replace("</head>", _ov_css + "</head>", 1)
@@ -405,16 +408,48 @@ def build_news(tpl_html, head_html):
 # ---------------------------------------------------------------------------
 # 出展企業
 # ---------------------------------------------------------------------------
-def build_companies(tpl_html, head_html):
+def _resolve_exhibitors_qurl():
     qurl = query_url(EXHIBITORS_DB_ID) if EXHIBITORS_DB_ID else ""
     if not qurl:
         qurl = _search_query_url("出展企業")
+    return qurl
+
+def _exhibitor_published_rows():
+    qurl = _resolve_exhibitors_qurl()
     if not qurl:
         print("  出展企業: データソースが見つかりません（インテグレーションへの共有を確認してください）", file=sys.stderr)
-        return
+        return []
     rows = query_paginate(qurl)
     pub = [p for p in rows if p_check(props(p), P["ex_pub"])]
     pub.sort(key=lambda pg: p_title(props(pg), P["ex_name"]))
+    return pub
+
+def _company_card(pg, href_prefix, img_prefix):
+    pr = props(pg); pid = pg["id"].replace("-", "")
+    name = p_title(pr, P["ex_name"])
+    area = p_select(pr, P["ex_area"]) or ""
+    city = p_select(pr, P["ex_city"]) or ""
+    industry = p_text(pr, P["ex_industry"])
+    joins = p_multi(pr, P["ex_join"])
+    intro = p_text(pr, P["ex_intro"])
+    covers = p_files(pr, P["ex_image"])
+    cover_rel = download_image(covers[0], "company") if covers else ""
+    tags = []
+    if city: tags.append(city)
+    if area: tags.append(area)
+    tags += joins
+    tag_html = "".join(f'<span class="sfv-tag">{html.escape(t)}</span>' for t in tags)
+    ph_div = f'<div class="ph" style="background-image:url({img_prefix}{cover_rel})"></div>' if cover_rel else '<div class="ph"></div>'
+    return (
+        f'<a class="sfv-card" href="{href_prefix}{pid}.html">{ph_div}<div class="bd">'
+        f'<div class="sfv-tags">{tag_html}</div>'
+        f'<h3>{html.escape(name)}</h3>'
+        + (f'<p class="sfv-ind">{html.escape(industry)}</p>' if industry else "")
+        + (f'<p>{html.escape(intro)}</p>' if intro else "")
+        + '</div></a>')
+
+def build_companies(tpl_html, head_html):
+    pub = _exhibitor_published_rows()
     cards = []
     for pg in pub:
         pr = props(pg); pid = pg["id"].replace("-", "")
@@ -449,14 +484,7 @@ def build_companies(tpl_html, head_html):
                + info_block
                + (f'<div class="sfv-article">{body}</div>' if body else ""))
         write(OUT / "companies" / f"{pid}.html", build_subpage(tpl_html, head_html, name, art))
-        ph_div = f'<div class="ph" style="background-image:url(../{cover_rel})"></div>' if cover_rel else ""
-        cards.append(
-            f'<a class="sfv-card" href="{pid}.html">{ph_div}<div class="bd">'
-            f'<div class="sfv-tags">{tag_html}</div>'
-            f'<h3>{html.escape(name)}</h3>'
-            + (f'<p class="sfv-ind">{html.escape(industry)}</p>' if industry else "")
-            + (f'<p>{html.escape(intro)}</p>' if intro else "")
-            + '</div></a>')
+        cards.append(_company_card(pg, "", "../"))
     listing = (f'<a class="sfv-back" href="../index.html">← トップへ</a>'
                f'<h1>出展企業</h1><p class="lead">瀬戸内ファクトリービュー2026 出展企業一覧</p>'
                f'<div class="sfv-grid">{"".join(cards) or "<p>現在公開中の出展企業はありません。</p>"}</div>')
