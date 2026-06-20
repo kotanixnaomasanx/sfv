@@ -370,16 +370,20 @@ def build_news(tpl_html, head_html):
         cat = p_select(pr, P["news_cat"]) or ""
         date = (p_date(pr, P["news_date"])[0] or "")
         summary = p_text(pr, P["news_summary"])
+        covers = p_files(pr, P["news_cover"])
+        cover_rel = download_image(covers[0], "newscover") if covers else ""
         body = blocks_to_html(get_blocks(pg["id"]), depth="sub")
         # 個別ページ
+        hero = f'<figure class="sfv-hero"><img src="../{cover_rel}" alt="{html.escape(title)}"></figure>' if cover_rel else ""
         art = (f'<a class="sfv-back" href="./">← お知らせ一覧</a>'
                f'<div class="sfv-meta">{html.escape(date)}</div>'
                f'<span class="sfv-tag">{html.escape(cat)}</span>'
                f'<h1>{html.escape(title)}</h1>'
-               f'<div class="sfv-article">{body}</div>')
+               f'{hero}<div class="sfv-article">{body}</div>')
         write(OUT / "news" / f"{pid}.html", build_subpage(tpl_html, head_html, title, art))
+        ph_div = f'<div class="ph" style="background-image:url(../{cover_rel})"></div>' if cover_rel else ""
         cards.append(
-            f'<a class="sfv-card" href="{pid}.html"><div class="bd">'
+            f'<a class="sfv-card" href="{pid}.html">{ph_div}<div class="bd">'
             f'<div class="sfv-meta">{html.escape(date)}</div>'
             f'<span class="sfv-tag">{html.escape(cat)}</span>'
             f'<h3>{html.escape(title)}</h3><p>{html.escape(summary)}</p></div></a>')
@@ -485,6 +489,7 @@ html,body{background-color:#fff!important}
 .sfv-meta{font-size:13px;color:var(--sfv-ink-soft,#6b6b66);margin-bottom:6px}
 .sfv-article{font-size:16px;line-height:1.9}
 .sfv-article :is(h2,h3,h4){margin-top:1.8em}
+.sfv-hero{margin:0 0 20px}.sfv-hero img{width:100%;max-height:440px;object-fit:cover;border-radius:12px;display:block}
 .sfv-article img{max-width:100%;border-radius:12px}
 .sfv-article .callout{display:flex;gap:10px;padding:14px 16px;border-radius:12px;background:var(--sfv-tint,#eef5fa);margin:16px 0}
 .sfv-article .callout-ic{flex:0 0 auto}
