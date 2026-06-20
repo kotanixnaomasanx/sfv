@@ -349,6 +349,9 @@ def build_index(tpl_html):
     # === Notio auto-fix: モバイルでイベント名表示 + 初期表示を週に ===
     _ov_css = '<style>@media(max-width:720px){.ev-bar{font-size:10px!important;height:18px!important;line-height:18px!important;padding:0 6px!important;border-radius:4px!important;box-shadow:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}.ev-wk-day{min-height:104px!important;}}</style>'
     html_out = html_out.replace("</head>", _ov_css + "</head>", 1)
+    # === Notio: ライトテーマ固定（スマホのダークモードで背景が黒くなるのを防止） ===
+    _theme_css = '<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><style>:root{color-scheme:light only}html,body{background-color:#fff!important}</style>'
+    html_out = html_out.replace("</head>", _theme_css + "</head>", 1)
     _ov_js = '<script>document.addEventListener("DOMContentLoaded",function(){try{var PS=new Date(2026,10,PERIOD_START),PE=new Date(2026,10,PERIOD_END);var t=new Date();var ws=weekStart(t);var we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);var inP=!(we<PS||ws>PE);state.view="week";state.ref=inP?t:PS;var vm=document.getElementById("viewMonth"),vw=document.getElementById("viewWeek");if(vm)vm.classList.remove("on");if(vw)vw.classList.add("on");render();}catch(e){}});</script>'
     html_out = html_out.replace("</body>", _ov_js + "</body>", 1)
     print(f"  スケジュール: {len(programs)} 件")
@@ -459,9 +462,11 @@ if __name__ == "__main__":
 
 
 # ===========================================================================
-# build_subpage の正規定義（上書き）— テンプレートはトークン置換、CSSは単一波括弧
+# build_subpage の正規定義（上書き）— テンプレートはトークン置換、CSSは単一波括号
 # ===========================================================================
 SUBPAGE_CSS = """
+:root{color-scheme:light only}
+html,body{background-color:#fff!important}
 .sfv-sub{max-width:900px;margin:0 auto;padding:120px 24px 80px}
 .sfv-sub h1{font-size:clamp(28px,5vw,44px);margin:0 0 8px;line-height:1.2}
 .sfv-sub .lead{color:var(--sfv-ink-soft,#6b6b66);margin:0 0 32px;font-size:17px}
@@ -492,6 +497,8 @@ SUBPAGE_TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
 <title>__TITLE__ — Setouchi Factory View</title>
 __HEAD__
 <style>
