@@ -445,6 +445,9 @@ def main():
     if missing:
         sys.exit("環境変数が未設定です: " + ", ".join(missing))
     tpl_html = TPL.read_text(encoding="utf-8")
+    # === Notio: ダークモード用CSSを丸ごと無効化（昼夜で見た目を完全統一） ===
+    tpl_html = re.sub(r"@media\s*\(\s*prefers-color-scheme\s*:\s*dark\s*\)\s*\{(?:[^{}]|\{[^{}]*\})*\}", "", tpl_html)
+    tpl_html = tpl_html.replace("color-scheme: light dark", "color-scheme: light").replace("color-scheme:light dark", "color-scheme:light")
     head_html = extract(tpl_html, "<head", "</head>")
     # <head ...> の中身だけを取り出す（開始タグとtitle/charset重複を適宜除去）
     head_inner = re.sub(r"^<head[^>]*>", "", head_html); head_inner = re.sub(r"</head>$", "", head_inner)
