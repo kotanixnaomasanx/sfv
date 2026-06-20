@@ -323,29 +323,28 @@ def build_index(tpl_html):
     # === Notio: トップページに「お知らせ」ブロックを追加（個別ページへリンク） ===
     news_rows = query_db(NEWS_DB_ID, sorts=[{"property": P["news_date"], "direction": "descending"}])
     news_pub = [p for p in news_rows if p_check(props(p), P["news_pub"])]
-    _ncards = []
-    for pg in news_pub[:6]:
+    _items = []
+    for pg in news_pub[:5]:
         pr = props(pg); pid = pg["id"].replace("-", "")
         ntitle = html.escape(p_title(pr, P["news_title"]))
         ncat = html.escape(p_select(pr, P["news_cat"]) or "")
         ndate = (p_date(pr, P["news_date"])[0] or "").replace("-", ".")
-        nsum = html.escape(p_text(pr, P["news_summary"]))
-        _meta = " · ".join([x for x in [ndate, ncat] if x])
-        _ncards.append(
-            f'<a class="nx-news-card" href="news/{pid}.html">'
-            f'<div class="nx-news-meta">{_meta}</div>'
-            f'<h3>{ntitle}</h3>' + (f'<p>{nsum}</p>' if nsum else '') + '</a>')
-    _ngrid = ("".join(_ncards) if _ncards else '<p style="color:var(--sfv-ink-soft,#6b6b66)">現在お知らせはありません。</p>')
+        _cat = f'<span class="nx-c">{ncat}</span>' if ncat else ''
+        _items.append(
+            f'<li><a href="news/{pid}.html">'
+            f'<span class="nx-d">{ndate}</span>{_cat}'
+            f'<span class="nx-t">{ntitle}</span></a></li>')
+    _list = "".join(_items) if _items else '<li class="nx-empty">現在お知らせはありません。</li>'
     _news_sec = (
-        '<section class="sfv-section" id="news">'
-        '<div class="sfv-section-head"><div class="sfv-kicker">News</div><h2>お知らせ</h2></div>'
-        f'<div class="nx-news-grid">{_ngrid}</div>'
-        '<div class="nx-news-more"><a href="news/">すべてのお知らせを見る →</a></div>'
-        '</section>')
+        '<aside class="nx-news" id="news"><div class="nx-news-wrap">'
+        '<div class="nx-news-head"><span class="k">News</span><span class="t">お知らせ</span>'
+        '<a class="nx-news-all" href="news/">一覧 →</a></div>'
+        f'<ul class="nx-news-list">{_list}</ul>'
+        '</div></aside>')
     html_out = html_out.replace(
-        '<section class="sfv-section sfv-tint" id="schedule">',
-        _news_sec + '<section class="sfv-section sfv-tint" id="schedule">', 1)
-    _news_css = '<style>.nx-news-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;}.nx-news-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--sfv-line,rgba(0,0,0,.1));border-radius:16px;padding:20px 22px;background:var(--sfv-card,#fff);transition:transform .2s,box-shadow .2s;}.nx-news-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.10);}.nx-news-meta{font-size:12px;letter-spacing:.04em;color:var(--sfv-blue,#3fa0d6);font-weight:600;margin-bottom:8px;}.nx-news-card h3{margin:0 0 8px;font-size:17px;line-height:1.5;}.nx-news-card p{margin:0;font-size:14px;line-height:1.7;color:var(--sfv-ink-soft,#6b6b66);}.nx-news-more{margin-top:28px;}.nx-news-more a{color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;font-size:14px;}</style>'
+        '<section class="sfv-section" id="concept">',
+        _news_sec + '<section class="sfv-section" id="concept">', 1)
+    _news_css = '<style>.nx-news{border-bottom:1px solid var(--sfv-line,rgba(0,0,0,.08));background:var(--sfv-card,#fff);}.nx-news-wrap{max-width:1120px;margin:0 auto;padding:20px clamp(16px,5vw,48px);}.nx-news-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;}.nx-news-head .k{font-size:12px;letter-spacing:.12em;color:var(--sfv-blue,#3fa0d6);font-weight:700;text-transform:uppercase;}.nx-news-head .t{font-size:14px;font-weight:700;}.nx-news-all{margin-left:auto;font-size:13px;color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;}.nx-news-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}.nx-news-list li{margin:0;border-top:1px solid var(--sfv-line,rgba(0,0,0,.06));}.nx-news-list li:first-child{border-top:0;}.nx-news-list a{display:flex;align-items:baseline;gap:12px;text-decoration:none;color:inherit;padding:8px 0;font-size:14px;line-height:1.6;}.nx-news-list a:hover .nx-t{color:var(--sfv-blue,#3fa0d6);text-decoration:underline;}.nx-d{flex:0 0 auto;color:var(--sfv-ink-soft,#6b6b66);font-size:13px;font-variant-numeric:tabular-nums;min-width:84px;}.nx-c{flex:0 0 auto;font-size:11px;color:var(--sfv-blue-deep,#2f8fc6);border:1px solid var(--sfv-line,rgba(0,0,0,.14));border-radius:999px;padding:1px 9px;}.nx-t{flex:1 1 auto;}.nx-empty{color:var(--sfv-ink-soft,#6b6b66);font-size:14px;padding:8px 0;}@media(max-width:640px){.nx-d{min-width:0;}.nx-news-list a{flex-wrap:wrap;gap:4px 10px;}.nx-t{flex-basis:100%;}}</style>'
     html_out = html_out.replace("</head>", _news_css + "</head>", 1)
     # === Notio auto-fix: モバイルでイベント名表示 + 初期表示を週に ===
     _ov_css = '<style>@media(max-width:720px){.ev-bar{font-size:10px!important;height:18px!important;line-height:18px!important;padding:0 6px!important;border-radius:4px!important;box-shadow:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}.ev-wk-day{min-height:104px!important;}}</style>'
