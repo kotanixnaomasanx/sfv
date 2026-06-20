@@ -319,7 +319,34 @@ def build_index(tpl_html):
     # トップのナビに News / 紹介ページ へのリンクを追加
     html_out = html_out.replace(
         '<a class="sfv-navcta"',
-        '<a href="news/">News</a><a href="factories/">紹介ページ</a><a class="sfv-navcta"', 1)
+        '<a href="#news">News</a><a href="factories/">紹介ページ</a><a class="sfv-navcta"', 1)
+    # === Notio: トップページに「お知らせ」ブロックを追加（個別ページへリンク） ===
+    news_rows = query_db(NEWS_DB_ID, sorts=[{"property": P["news_date"], "direction": "descending"}])
+    news_pub = [p for p in news_rows if p_check(props(p), P["news_pub"])]
+    _ncards = []
+    for pg in news_pub[:6]:
+        pr = props(pg); pid = pg["id"].replace("-", "")
+        ntitle = html.escape(p_title(pr, P["news_title"]))
+        ncat = html.escape(p_select(pr, P["news_cat"]) or "")
+        ndate = (p_date(pr, P["news_date"])[0] or "").replace("-", ".")
+        nsum = html.escape(p_text(pr, P["news_summary"]))
+        _meta = " · ".join([x for x in [ndate, ncat] if x])
+        _ncards.append(
+            f'<a class="nx-news-card" href="news/{pid}.html">'
+            f'<div class="nx-news-meta">{_meta}</div>'
+            f'<h3>{ntitle}</h3>' + (f'<p>{nsum}</p>' if nsum else '') + '</a>')
+    _ngrid = ("".join(_ncards) if _ncards else '<p style="color:var(--sfv-ink-soft,#6b6b66)">現在お知らせはありません。</p>')
+    _news_sec = (
+        '<section class="sfv-section" id="news">'
+        '<div class="sfv-section-head"><div class="sfv-kicker">News</div><h2>お知らせ</h2></div>'
+        f'<div class="nx-news-grid">{_ngrid}</div>'
+        '<div class="nx-news-more"><a href="news/">すべてのお知らせを見る →</a></div>'
+        '</section>')
+    html_out = html_out.replace(
+        '<section class="sfv-section sfv-tint" id="schedule">',
+        _news_sec + '<section class="sfv-section sfv-tint" id="schedule">', 1)
+    _news_css = '<style>.nx-news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;}.nx-news-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--sfv-line,rgba(0,0,0,.1));border-radius:16px;padding:20px 22px;background:var(--sfv-card,#fff);transition:transform .2s,box-shadow .2s;}.nx-news-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.10);}.nx-news-meta{font-size:12px;letter-spacing:.04em;color:var(--sfv-blue,#3fa0d6);font-weight:600;margin-bottom:8px;}.nx-news-card h3{margin:0 0 8px;font-size:17px;line-height:1.5;}.nx-news-card p{margin:0;font-size:14px;line-height:1.7;color:var(--sfv-ink-soft,#6b6b66);}.nx-news-more{margin-top:28px;}.nx-news-more a{color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;font-size:14px;}</style>'
+    html_out = html_out.replace("</head>", _news_css + "</head>", 1)
     # === Notio auto-fix: モバイルでイベント名表示 + 初期表示を週に ===
     _ov_css = '<style>@media(max-width:720px){.ev-bar{font-size:10px!important;height:18px!important;line-height:18px!important;padding:0 6px!important;border-radius:4px!important;box-shadow:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}.ev-wk-day{min-height:104px!important;}}</style>'
     html_out = html_out.replace("</head>", _ov_css + "</head>", 1)
