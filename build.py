@@ -230,7 +230,7 @@ def blocks_to_html(blocks, depth="page"):
             url = img.get("file", {}).get("url") or img.get("external", {}).get("url", "")
             rel = download_image(url, "body")
             cap = rich_to_html(img.get("caption", []))
-            prefix = "../../" if depth == "sub" else ""
+            prefix = "../" if depth == "sub" else ""
             if rel:
                 out.append(f'<figure><img src="{prefix}{rel}" alt="{html.escape(cap)}" loading="lazy">' + (f"<figcaption>{cap}</figcaption>" if cap else "") + "</figure>")
         i += 1
@@ -247,13 +247,13 @@ def build_subpage(tpl_html, head_html, title, body_html):
     """サブページ（/news/, /factories/ 配下）用のHTML。トップのCSSを再利用。"""
     nav = extract(tpl_html, '<nav class="sfv-nav">', "</nav>")
     foot = extract(tpl_html, "<footer", "</footer>")
-    # サブディレクトリから見たリンクに調整（../../ でルートへ）
-    nav = nav.replace('href="#', 'href="../../index.html#')
-    nav = nav.replace('href="../../index.html#top"', 'href="../../index.html"')
-    extra = ('<a href="../../news/">News</a>'
-             '<a href="../../factories/">紹介ページ</a>')
+    # サブディレクトリから見たリンクに調整（../ でルートへ）
+    nav = nav.replace('href="#', 'href="../index.html#')
+    nav = nav.replace('href="../index.html#top"', 'href="../index.html"')
+    extra = ('<a href="../news/">News</a>'
+             '<a href="../factories/">紹介ページ</a>')
     nav = nav.replace('<a class="sfv-navcta"', extra + '<a class="sfv-navcta"')
-    foot = foot.replace('href="#', 'href="../../index.html#')
+    foot = foot.replace('href="#', 'href="../index.html#')
     return f"""<!doctype html>
 <html lang="ja">
 <head>
@@ -266,7 +266,7 @@ def build_subpage(tpl_html, head_html, title, body_html):
 .sfv-sub h1font-size:clamp(28px,5vw,44px);margin:0 0 8px
 .sfv-sub .leadcolor:var(--sfv-ink-soft,#6b6b66);margin:0 0 32px
 .sfv-backdisplay:inline-block;margin-bottom:24px;color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600
-.sfv-griddisplay:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px
+.sfv-griddisplay:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px
 .sfv-carddisplay:block;text-decoration:none;color:inherit;border:1px solid var(--sfv-line,rgba(0,0,0,.1));border-radius:16px;overflow:hidden;background:var(--sfv-card,#fff);transition:transform .2s,box-shadow .2s
 .sfv-card:hovertransform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.10)
 .sfv-card .phaspect-ratio:4/3;background:var(--sfv-tint,#eef5fa);background-size:cover;background-position:center
@@ -280,7 +280,7 @@ def build_subpage(tpl_html, head_html, title, body_html):
 .sfv-article .calloutdisplay:flex;gap:10px;padding:14px 16px;border-radius:12px;background:var(--sfv-tint,#eef5fa);margin:16px 0
 .sfv-article figuremargin:18px 0
 .sfv-article figcaptionfont-size:13px;color:var(--sfv-ink-soft,#6b6b66);text-align:center;margin-top:6px
-.sfv-gallerydisplay:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:24px 0
+.sfv-gallerydisplay:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:24px 0
 .sfv-gallery imgwidth:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px
 </style>
 </head>
@@ -345,7 +345,7 @@ def build_index(tpl_html):
     html_out = html_out.replace(
         '<section class="sfv-section sfv-tint" id="schedule">',
         _news_sec + '<section class="sfv-section sfv-tint" id="schedule">', 1)
-    _news_css = '<style>.nx-news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px;}.nx-news-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--sfv-line,rgba(0,0,0,.1));border-radius:16px;padding:20px 22px;background:var(--sfv-card,#fff);transition:transform .2s,box-shadow .2s;}.nx-news-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.10);}.nx-news-meta{font-size:12px;letter-spacing:.04em;color:var(--sfv-blue,#3fa0d6);font-weight:600;margin-bottom:8px;}.nx-news-card h3{margin:0 0 8px;font-size:17px;line-height:1.5;}.nx-news-card p{margin:0;font-size:14px;line-height:1.7;color:var(--sfv-ink-soft,#6b6b66);}.nx-news-more{margin-top:28px;}.nx-news-more a{color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;font-size:14px;}</style>'
+    _news_css = '<style>.nx-news-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;}.nx-news-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--sfv-line,rgba(0,0,0,.1));border-radius:16px;padding:20px 22px;background:var(--sfv-card,#fff);transition:transform .2s,box-shadow .2s;}.nx-news-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.10);}.nx-news-meta{font-size:12px;letter-spacing:.04em;color:var(--sfv-blue,#3fa0d6);font-weight:600;margin-bottom:8px;}.nx-news-card h3{margin:0 0 8px;font-size:17px;line-height:1.5;}.nx-news-card p{margin:0;font-size:14px;line-height:1.7;color:var(--sfv-ink-soft,#6b6b66);}.nx-news-more{margin-top:28px;}.nx-news-more a{color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;font-size:14px;}</style>'
     html_out = html_out.replace("</head>", _news_css + "</head>", 1)
     # === Notio auto-fix: モバイルでイベント名表示 + 初期表示を週に ===
     _ov_css = '<style>@media(max-width:720px){.ev-bar{font-size:10px!important;height:18px!important;line-height:18px!important;padding:0 6px!important;border-radius:4px!important;box-shadow:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}.ev-wk-day{min-height:104px!important;}}</style>'
@@ -410,16 +410,16 @@ def build_factories(tpl_html, head_html):
         body = blocks_to_html(get_blocks(pg["id"]), depth="sub")
         gal = ""
         if gallery:
-            imgs = "".join(f'<img src="../../{download_image(u, "gal")}" loading="lazy" alt="">' for u in gallery if download_image(u, "gal"))
+            imgs = "".join(f'<img src="../{download_image(u, "gal")}" loading="lazy" alt="">' for u in gallery if download_image(u, "gal"))
             gal = f'<div class="sfv-gallery">{imgs}</div>'
-        hero = f'<figure><img src="../../{cover_rel}" alt="{html.escape(title)}"></figure>' if cover_rel else ""
+        hero = f'<figure><img src="../{cover_rel}" alt="{html.escape(title)}"></figure>' if cover_rel else ""
         art = (f'<a class="sfv-back" href="./">← 紹介ページ一覧</a>'
                f'<span class="sfv-tag">{html.escape(area)}</span>'
                f'<h1>{html.escape(title)}</h1>'
                f'<p class="lead">{html.escape(summary)}</p>'
                f'{hero}<div class="sfv-article">{body}</div>{gal}')
         write(OUT / "factories" / f"{slug}.html", build_subpage(tpl_html, head_html, title, art))
-        ph = f'style="background-image:url(../../{cover_rel})"' if cover_rel else ""
+        ph = f'style="background-image:url(../{cover_rel})"' if cover_rel else ""
         cards.append(
             f'<a class="sfv-card" href="{slug}.html"><div class="ph" {ph}></div><div class="bd">'
             f'<span class="sfv-tag">{html.escape(area)}</span>'
@@ -467,7 +467,7 @@ SUBPAGE_CSS = """
 .sfv-sub h1{font-size:clamp(28px,5vw,44px);margin:0 0 8px;line-height:1.2}
 .sfv-sub .lead{color:var(--sfv-ink-soft,#6b6b66);margin:0 0 32px;font-size:17px}
 .sfv-back{display:inline-block;margin-bottom:24px;color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600}
-.sfv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px}
+.sfv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:24px}
 .sfv-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--sfv-line,rgba(0,0,0,.1));border-radius:16px;overflow:hidden;background:var(--sfv-card,#fff);transition:transform .2s,box-shadow .2s}
 .sfv-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.10)}
 .sfv-card .ph{aspect-ratio:4/3;background:var(--sfv-tint,#eef5fa);background-size:cover;background-position:center}
@@ -483,7 +483,7 @@ SUBPAGE_CSS = """
 .sfv-article .callout-ic{flex:0 0 auto}
 .sfv-article figure{margin:18px 0}
 .sfv-article figcaption{font-size:13px;color:var(--sfv-ink-soft,#6b6b66);text-align:center;margin-top:6px}
-.sfv-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:24px 0}
+.sfv-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:24px 0}
 .sfv-gallery img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px}
 @media(max-width:640px){.sfv-sub{padding:96px 18px 64px}}
 """
@@ -511,11 +511,11 @@ __FOOT__
 def build_subpage(tpl_html, head_html, title, body_html):
     nav = extract(tpl_html, '<nav class="sfv-nav">', "</nav>")
     foot = extract(tpl_html, "<footer", "</footer>")
-    nav = nav.replace('href="#', 'href="../../index.html#')
-    nav = nav.replace('href="../../index.html#top"', 'href="../../index.html"')
-    extra = '<a href="../../news/">News</a><a href="../../factories/">紹介ページ</a>'
+    nav = nav.replace('href="#', 'href="../index.html#')
+    nav = nav.replace('href="../index.html#top"', 'href="../index.html"')
+    extra = '<a href="../news/">News</a><a href="../factories/">紹介ページ</a>'
     nav = nav.replace('<a class="sfv-navcta"', extra + '<a class="sfv-navcta"')
-    foot = foot.replace('href="#', 'href="../../index.html#')
+    foot = foot.replace('href="#', 'href="../index.html#')
     page = SUBPAGE_TEMPLATE
     page = page.replace("__TITLE__", html.escape(title))
     page = page.replace("__HEAD__", head_html)
