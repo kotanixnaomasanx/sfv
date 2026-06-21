@@ -55,7 +55,7 @@ P = {
     "pg_order": "並び順", "pg_pub": "公開",
     "sc_title": "プログラム", "sc_date": "日程", "sc_cat": "カテゴリ",
     "sc_area": "エリア", "sc_venue": "会場", "sc_reserve": "要予約", "sc_fee": "料金",
-    "ex_name": "会社名", "ex_area": "エリア", "ex_city": "市町村", "ex_industry": "業種",
+    "ex_name": "会社名", "ex_area": "エリア", "ex_city": "市町", "ex_industry": "業種",
     "ex_size": "会社規模", "ex_join": "参加形態", "ex_intro": "会社紹介文",
     "ex_address": "住所", "ex_image": "画像", "ex_pub": "公開",
 }
@@ -346,7 +346,7 @@ def build_index(tpl_html):
     # === Notio: トップページに「出展企業」セクションを追加（画像・タグ・業種付きカード） ===
     comp_pub = _exhibitor_published_rows()
     if comp_pub:
-        _ccards = "".join(_company_card(pg, "companies/", "") for pg in comp_pub[:6])
+        _ccards = "".join(_company_card(pg, "companies/", "") for pg in comp_pub)
         _comp_sec = (
             '<section class="nx-companies" id="companies"><div class="nx-comp-wrap">'
             '<div class="nx-comp-head"><span class="k">Exhibitors</span><h2>出展企業</h2>'
@@ -463,6 +463,8 @@ def build_companies(tpl_html, head_html):
         address = p_text(pr, P["ex_address"])
         covers = p_files(pr, P["ex_image"])
         cover_rel = download_image(covers[0], "company") if covers else ""
+        gal_imgs = "".join(f'<img src="../{download_image(u, "company")}" loading="lazy" alt="">' for u in covers[1:]) if len(covers) > 1 else ""
+        gal = f'<div class="sfv-gallery">{gal_imgs}</div>' if gal_imgs else ""
         body = blocks_to_html(get_blocks(pg["id"]), depth="sub")
         tags = []
         if city: tags.append(city)
@@ -472,7 +474,6 @@ def build_companies(tpl_html, head_html):
         hero = f'<figure class="sfv-hero"><img src="../{cover_rel}" alt="{html.escape(name)}"></figure>' if cover_rel else ""
         info = []
         if industry: info.append(("業種", industry))
-        if size: info.append(("会社規模", size))
         if address: info.append(("住所", address))
         info_html = "".join(f'<tr><th>{html.escape(k)}</th><td>{html.escape(v)}</td></tr>' for k, v in info)
         info_block = f'<table class="sfv-info">{info_html}</table>' if info else ""
@@ -482,7 +483,8 @@ def build_companies(tpl_html, head_html):
                f'{hero}'
                + (f'<p class="lead">{html.escape(intro)}</p>' if intro else "")
                + info_block
-               + (f'<div class="sfv-article">{body}</div>' if body else ""))
+               + (f'<div class="sfv-article">{body}</div>' if body else "")
+               + gal)
         write(OUT / "companies" / f"{pid}.html", build_subpage(tpl_html, head_html, name, art))
         cards.append(_company_card(pg, "", "../"))
     listing = (f'<a class="sfv-back" href="../index.html">← トップへ</a>'
