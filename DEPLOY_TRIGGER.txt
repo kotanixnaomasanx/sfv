@@ -1,2 +1,2 @@
-last manual deploy trigger: 2026-06-20T11:08 JST (by Notio)
+last manual deploy trigger: 2026-06-21T14:38 JST (by Notio)
 このファイルは手動でサイトを再ビルド・再デプロイさせるためのトリガーです。更新してpushするとActionsが走ります。
