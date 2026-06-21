@@ -294,6 +294,33 @@ def extract(tpl, start, end):
 # スケジュール → トップページの PROGRAMS を置換
 # ---------------------------------------------------------------------------
 CAT_ORDER = ["工場見学", "体験・ワークショップ", "トーク", "特別", "ショップ"]
+# 出展企業の市町表示順（この順に並べ替える）
+CITY_ORDER = ["広島市", "府中市", "福山市", "廿日市市", "笠岡市", "熊野町", "庄原市", "北広島町", "江田島市", "東広島市"]
+# 出展企業一覧ページのタグ絞り込み用JS
+FILTER_JS = """<script>
+(function(){
+  var bar=document.querySelector('.sfv-filter');
+  if(!bar)return;
+  var cards=[].slice.call(document.querySelectorAll('.sfv-grid .sfv-card'));
+  var chips=[].slice.call(bar.querySelectorAll('.flt'));
+  function apply(){
+    var active={};
+    chips.forEach(function(c){if(c.classList.contains('on')){var k=c.getAttribute('data-ftype');(active[k]=active[k]||[]).push(c.getAttribute('data-fval'));}});
+    var types=Object.keys(active);
+    cards.forEach(function(card){
+      var show=types.every(function(t){
+        var vals=active[t];
+        if(t==='joins'){var dj=card.getAttribute('data-joins')||'';return vals.some(function(v){return dj.indexOf('|'+v+'|')>=0;});}
+        var cv=card.getAttribute('data-'+t)||'';return vals.indexOf(cv)>=0;
+      });
+      card.style.display=show?'':'none';
+    });
+  }
+  chips.forEach(function(c){c.addEventListener('click',function(){c.classList.toggle('on');apply();});});
+  var reset=bar.querySelector('.flt-reset');
+  if(reset)reset.addEventListener('click',function(){chips.forEach(function(x){x.classList.remove('on');});apply();});
+})();
+</script>"""
 
 def build_index(tpl_html):
     rows = query_db(SCHEDULE_DB_ID, sorts=[{"property": P["sc_date"], "direction": "ascending"}])
@@ -421,7 +448,11 @@ def _exhibitor_published_rows():
         return []
     rows = query_paginate(qurl)
     pub = [p for p in rows if p_check(props(p), P["ex_pub"])]
-    pub.sort(key=lambda pg: p_title(props(pg), P["ex_name"]))
+    def _city_key(pg):
+        c = p_select(props(pg), P["ex_city"]) or ""
+        ci = CITY_ORDER.index(c) if c in CITY_ORDER else len(CITY_ORDER)
+        return (ci, p_title(props(pg), P["ex_name"]))
+    pub.sort(key=_city_key)
     return pub
 
 def _company_card(pg, href_prefix, img_prefix):
@@ -439,9 +470,10 @@ def _company_card(pg, href_prefix, img_prefix):
     if area: tags.append(area)
     tags += joins
     tag_html = "".join(f'<span class="sfv-tag">{html.escape(t)}</span>' for t in tags)
+    data_joins = "|" + "|".join(joins) + "|" if joins else ""
     ph_div = f'<div class="ph" style="background-image:url({img_prefix}{cover_rel})"></div>' if cover_rel else '<div class="ph"></div>'
     return (
-        f'<a class="sfv-card" href="{href_prefix}{pid}.html">{ph_div}<div class="bd">'
+        f'<a class="sfv-card" href="{href_prefix}{pid}.html" data-city="{html.escape(city)}" data-area="{html.escape(area)}" data-industry="{html.escape(industry)}" data-joins="{html.escape(data_joins)}">{ph_div}<div class="bd">'
         f'<div class="sfv-tags">{tag_html}</div>'
         f'<h3>{html.escape(name)}</h3>'
         + (f'<p class="sfv-ind">{html.escape(industry)}</p>' if industry else "")
@@ -487,9 +519,32 @@ def build_companies(tpl_html, head_html):
                + gal)
         write(OUT / "companies" / f"{pid}.html", build_subpage(tpl_html, head_html, name, art))
         cards.append(_company_card(pg, "", "../"))
+    # === Notio: 市町・エリア・業種・参加形態で絞り込めるタグリスト ===
+    cities, areas, inds, joinset = [], [], [], []
+    for pg in pub:
+        pr = props(pg)
+        c = p_select(pr, P["ex_city"]) or ""
+        if c and c not in cities: cities.append(c)
+        a = p_select(pr, P["ex_area"]) or ""
+        if a and a not in areas: areas.append(a)
+        ind = p_text(pr, P["ex_industry"])
+        if ind and ind not in inds: inds.append(ind)
+        for j in p_multi(pr, P["ex_join"]):
+            if j not in joinset: joinset.append(j)
+    cities.sort(key=lambda c: CITY_ORDER.index(c) if c in CITY_ORDER else len(CITY_ORDER))
+    def _chips(ftype, values):
+        return "".join(f'<button class="flt" data-ftype="{ftype}" data-fval="{html.escape(v)}">{html.escape(v)}</button>' for v in values)
+    _groups = ""
+    if cities:  _groups += f'<div class="flt-g"><span class="flt-l">市町</span>{_chips("city", cities)}</div>'
+    if areas:   _groups += f'<div class="flt-g"><span class="flt-l">エリア</span>{_chips("area", areas)}</div>'
+    if inds:    _groups += f'<div class="flt-g"><span class="flt-l">業種</span>{_chips("industry", inds)}</div>'
+    if joinset: _groups += f'<div class="flt-g"><span class="flt-l">参加形態</span>{_chips("joins", joinset)}</div>'
+    filter_bar = f'<div class="sfv-filter">{_groups}<button class="flt-reset">すべて表示</button></div>' if _groups else ""
     listing = (f'<a class="sfv-back" href="../index.html">← トップへ</a>'
                f'<h1>出展企業</h1><p class="lead">瀬戸内ファクトリービュー2026 出展企業一覧</p>'
-               f'<div class="sfv-grid">{"".join(cards) or "<p>現在公開中の出展企業はありません。</p>"}</div>')
+               f'{filter_bar}'
+               f'<div class="sfv-grid">{"".join(cards) or "<p>現在公開中の出展企業はありません。</p>"}</div>'
+               f'{FILTER_JS}')
     write(OUT / "companies" / "index.html", build_subpage(tpl_html, head_html, "出展企業", listing))
     print(f"  出展企業: {len(pub)} 件公開")
 
@@ -600,6 +655,13 @@ html,body{background-color:#fff!important}
 .sfv-article figcaption{font-size:13px;color:var(--sfv-ink-soft,#6b6b66);text-align:center;margin-top:6px}
 .sfv-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:24px 0}
 .sfv-gallery img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px}
+.sfv-filter{margin:0 0 26px;display:flex;flex-direction:column;gap:10px}
+.sfv-filter .flt-g{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.sfv-filter .flt-l{font-size:12px;font-weight:700;color:var(--sfv-ink-soft,#6b6b66);margin-right:4px;min-width:64px}
+.sfv-filter .flt{cursor:pointer;font-size:12px;padding:3px 12px;border-radius:999px;border:1px solid var(--sfv-line,rgba(0,0,0,.14));background:var(--sfv-card,#fff);color:var(--sfv-ink,#333);transition:all .15s}
+.sfv-filter .flt:hover{border-color:var(--sfv-blue,#3fa0d6)}
+.sfv-filter .flt.on{background:var(--sfv-blue,#3fa0d6);border-color:var(--sfv-blue,#3fa0d6);color:#fff}
+.sfv-filter .flt-reset{cursor:pointer;align-self:flex-start;margin-top:2px;font-size:12px;padding:3px 14px;border-radius:999px;border:1px solid var(--sfv-line,rgba(0,0,0,.2));background:transparent;color:var(--sfv-ink-soft,#6b6b66)}
 @media(max-width:640px){.sfv-sub{padding:96px 18px 64px}}
 """
 
