@@ -563,9 +563,6 @@ def main():
     (OUT / ".nojekyll").write_text("")  # GitHub Pages で _ 始まりファイルを配信
     print("完了: public/ を生成しました。")
 
-if __name__ == "__main__":
-    main()
-
 
 # ===========================================================================
 # build_subpage の正規定義— テンプレートはトークン置換、CSSは単一波括弧
@@ -642,3 +639,7 @@ def build_subpage(tpl_html, head_html, title, body_html):
     page = page.replace("__BODY__", body_html)
     page = page.replace("__FOOT__", foot)
     return page
+
+
+if __name__ == "__main__":
+    main()
