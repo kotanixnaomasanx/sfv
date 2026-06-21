@@ -374,17 +374,20 @@ def build_index(tpl_html):
     comp_pub = _exhibitor_published_rows()
     if comp_pub:
         _ccards = "".join(_company_card(pg, "companies/", "") for pg in comp_pub)
+        _comp_filter = _facet_bar(comp_pub)
         _comp_sec = (
             '<section class="nx-companies" id="companies"><div class="nx-comp-wrap">'
             '<div class="nx-comp-head"><span class="k">Exhibitors</span><h2>出展企業</h2>'
             '<a class="nx-comp-all" href="companies/">すべて見る →</a></div>'
+            f'{_comp_filter}'
             f'<div class="sfv-grid">{_ccards}</div>'
             '</div></section>')
         html_out = html_out.replace(
             '<section class="sfv-section" id="concept">',
             _comp_sec + '<section class="sfv-section" id="concept">', 1)
-        _comp_css = '<style>.nx-companies{background:var(--sfv-tint,#eef5fa);}.nx-comp-wrap{max-width:1120px;margin:0 auto;padding:56px clamp(16px,5vw,48px);}.nx-comp-head{display:flex;align-items:baseline;gap:12px;margin-bottom:24px;}.nx-comp-head .k{font-size:12px;letter-spacing:.12em;color:var(--sfv-blue,#3fa0d6);font-weight:700;text-transform:uppercase;}.nx-comp-head h2{margin:0;font-size:24px;}.nx-comp-all{margin-left:auto;font-size:13px;color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;white-space:nowrap;}.nx-companies .sfv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;}.nx-companies .sfv-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--sfv-line,rgba(0,0,0,.1));border-radius:16px;overflow:hidden;background:var(--sfv-card,#fff);transition:transform .2s,box-shadow .2s;}.nx-companies .sfv-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.10);}.nx-companies .sfv-card .ph{aspect-ratio:4/3;background:var(--sfv-tint,#eef5fa);background-size:cover;background-position:center;}.nx-companies .sfv-card .bd{padding:16px 18px;}.nx-companies .sfv-card h3{margin:0 0 6px;font-size:18px;}.nx-companies .sfv-card p{margin:0;color:var(--sfv-ink-soft,#6b6b66);font-size:14px;line-height:1.6;}.nx-companies .sfv-tag{display:inline-block;font-size:12px;padding:2px 10px;border-radius:999px;background:var(--sfv-tint,#eef5fa);color:var(--sfv-blue-deep,#2f8fc6);margin:0 4px 4px 0;}.nx-companies .sfv-tags{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px;}.nx-companies .sfv-ind{font-size:13px;color:var(--sfv-blue-deep,#2f8fc6);font-weight:600;margin:0 0 6px;}</style>'
+        _comp_css = '<style>.nx-companies{background:var(--sfv-tint,#eef5fa);}.nx-comp-wrap{max-width:1120px;margin:0 auto;padding:56px clamp(16px,5vw,48px);}.nx-comp-head{display:flex;align-items:baseline;gap:12px;margin-bottom:24px;}.nx-comp-head .k{font-size:12px;letter-spacing:.12em;color:var(--sfv-blue,#3fa0d6);font-weight:700;text-transform:uppercase;}.nx-comp-head h2{margin:0;font-size:24px;}.nx-comp-all{margin-left:auto;font-size:13px;color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;white-space:nowrap;}.nx-companies .sfv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;}.nx-companies .sfv-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--sfv-line,rgba(0,0,0,.1));border-radius:16px;overflow:hidden;background:var(--sfv-card,#fff);transition:transform .2s,box-shadow .2s;}.nx-companies .sfv-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.10);}.nx-companies .sfv-card .ph{aspect-ratio:4/3;background:var(--sfv-tint,#eef5fa);background-size:cover;background-position:center;}.nx-companies .sfv-card .bd{padding:16px 18px;}.nx-companies .sfv-card h3{margin:0 0 6px;font-size:18px;}.nx-companies .sfv-card p{margin:0;color:var(--sfv-ink-soft,#6b6b66);font-size:14px;line-height:1.6;}.nx-companies .sfv-tag{display:inline-block;font-size:12px;padding:2px 10px;border-radius:999px;background:var(--sfv-tint,#eef5fa);color:var(--sfv-blue-deep,#2f8fc6);margin:0 4px 4px 0;}.nx-companies .sfv-tags{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px;}.nx-companies .sfv-ind{font-size:13px;color:var(--sfv-blue-deep,#2f8fc6);font-weight:600;margin:0 0 6px;}.nx-companies .sfv-filter{margin:0 0 24px;display:flex;flex-direction:column;gap:10px}.nx-companies .flt-g{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.nx-companies .flt-l{font-size:12px;font-weight:700;color:var(--sfv-ink-soft,#6b6b66);margin-right:4px;min-width:64px}.nx-companies .flt{cursor:pointer;font-size:12px;padding:3px 12px;border-radius:999px;border:1px solid var(--sfv-line,rgba(0,0,0,.14));background:var(--sfv-card,#fff);color:var(--sfv-ink,#333);transition:all .15s}.nx-companies .flt:hover{border-color:var(--sfv-blue,#3fa0d6)}.nx-companies .flt.on{background:var(--sfv-blue,#3fa0d6);border-color:var(--sfv-blue,#3fa0d6);color:#fff}.nx-companies .flt-reset{cursor:pointer;align-self:flex-start;margin-top:2px;font-size:12px;padding:3px 14px;border-radius:999px;border:1px solid var(--sfv-line,rgba(0,0,0,.2));background:transparent;color:var(--sfv-ink-soft,#6b6b66)}</style>'
         html_out = html_out.replace("</head>", _comp_css + "</head>", 1)
+        html_out = html_out.replace("</body>", FILTER_JS + "</body>", 1)
     # === Notio auto-fix: モバイルでイベント名表示 + 初期表示を週に ===
     _ov_css = '<style>@media(max-width:720px){.ev-bar{font-size:10px!important;height:18px!important;line-height:18px!important;padding:0 6px!important;border-radius:4px!important;box-shadow:none!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}.ev-wk-day{min-height:104px!important;}}</style>'
     html_out = html_out.replace("</head>", _ov_css + "</head>", 1)
@@ -480,6 +483,29 @@ def _company_card(pg, href_prefix, img_prefix):
         + (f'<p>{html.escape(intro)}</p>' if intro else "")
         + '</div></a>')
 
+def _facet_bar(pub):
+    """出展企業の市町・エリア・業種・参加形態のタグ絞り込みバーを生成。"""
+    cities, areas, inds, joinset = [], [], [], []
+    for pg in pub:
+        pr = props(pg)
+        c = p_select(pr, P["ex_city"]) or ""
+        if c and c not in cities: cities.append(c)
+        a = p_select(pr, P["ex_area"]) or ""
+        if a and a not in areas: areas.append(a)
+        ind = p_text(pr, P["ex_industry"])
+        if ind and ind not in inds: inds.append(ind)
+        for j in p_multi(pr, P["ex_join"]):
+            if j not in joinset: joinset.append(j)
+    cities.sort(key=lambda c: CITY_ORDER.index(c) if c in CITY_ORDER else len(CITY_ORDER))
+    def _chips(ftype, values):
+        return "".join(f'<button class="flt" data-ftype="{ftype}" data-fval="{html.escape(v)}">{html.escape(v)}</button>' for v in values)
+    _groups = ""
+    if cities:  _groups += f'<div class="flt-g"><span class="flt-l">市町</span>{_chips("city", cities)}</div>'
+    if areas:   _groups += f'<div class="flt-g"><span class="flt-l">エリア</span>{_chips("area", areas)}</div>'
+    if inds:    _groups += f'<div class="flt-g"><span class="flt-l">業種</span>{_chips("industry", inds)}</div>'
+    if joinset: _groups += f'<div class="flt-g"><span class="flt-l">参加形態</span>{_chips("joins", joinset)}</div>'
+    return f'<div class="sfv-filter">{_groups}<button class="flt-reset">すべて表示</button></div>' if _groups else ""
+
 def build_companies(tpl_html, head_html):
     pub = _exhibitor_published_rows()
     cards = []
@@ -520,26 +546,7 @@ def build_companies(tpl_html, head_html):
         write(OUT / "companies" / f"{pid}.html", build_subpage(tpl_html, head_html, name, art))
         cards.append(_company_card(pg, "", "../"))
     # === Notio: 市町・エリア・業種・参加形態で絞り込めるタグリスト ===
-    cities, areas, inds, joinset = [], [], [], []
-    for pg in pub:
-        pr = props(pg)
-        c = p_select(pr, P["ex_city"]) or ""
-        if c and c not in cities: cities.append(c)
-        a = p_select(pr, P["ex_area"]) or ""
-        if a and a not in areas: areas.append(a)
-        ind = p_text(pr, P["ex_industry"])
-        if ind and ind not in inds: inds.append(ind)
-        for j in p_multi(pr, P["ex_join"]):
-            if j not in joinset: joinset.append(j)
-    cities.sort(key=lambda c: CITY_ORDER.index(c) if c in CITY_ORDER else len(CITY_ORDER))
-    def _chips(ftype, values):
-        return "".join(f'<button class="flt" data-ftype="{ftype}" data-fval="{html.escape(v)}">{html.escape(v)}</button>' for v in values)
-    _groups = ""
-    if cities:  _groups += f'<div class="flt-g"><span class="flt-l">市町</span>{_chips("city", cities)}</div>'
-    if areas:   _groups += f'<div class="flt-g"><span class="flt-l">エリア</span>{_chips("area", areas)}</div>'
-    if inds:    _groups += f'<div class="flt-g"><span class="flt-l">業種</span>{_chips("industry", inds)}</div>'
-    if joinset: _groups += f'<div class="flt-g"><span class="flt-l">参加形態</span>{_chips("joins", joinset)}</div>'
-    filter_bar = f'<div class="sfv-filter">{_groups}<button class="flt-reset">すべて表示</button></div>' if _groups else ""
+    filter_bar = _facet_bar(pub)
     listing = (f'<a class="sfv-back" href="../index.html">← トップへ</a>'
                f'<h1>出展企業</h1><p class="lead">瀬戸内ファクトリービュー2026 出展企業一覧</p>'
                f'{filter_bar}'
