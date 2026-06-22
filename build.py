@@ -43,6 +43,7 @@ NEWS_DB_ID     = clean_id(NEWS_DB_ID)
 PAGES_DB_ID    = clean_id(PAGES_DB_ID)
 SCHEDULE_DB_ID = clean_id(SCHEDULE_DB_ID)
 EXHIBITORS_DB_ID = clean_id(EXHIBITORS_DB_ID)
+SITE_SPEC_DB_ID = clean_id(os.environ.get("SITE_SPEC_DB_ID", ""))
 NOTION_VERSION = "2025-09-03"
 API = "https://api.notion.com/v1"
 
@@ -322,6 +323,59 @@ FILTER_JS = """<script>
 })();
 </script>"""
 
+# ---------------------------------------------------------------------------
+# サイトページ仕様（Notion DBで各ページのテキスト・画像・表示を制御）
+# 「サイトページ仕様」DBの (ページ, セクションID) ごとの行を読み、
+# 見出し・ラベル・リード文・画像・表示有無・テーマカラーを上書きします。
+# 行が無い/空の場合は従来の既定値を使います（サイトが壊れない）。
+# ---------------------------------------------------------------------------
+_SITE_SPEC = None
+def _load_site_spec():
+    global _SITE_SPEC
+    if _SITE_SPEC is not None:
+        return _SITE_SPEC
+    spec = {}
+    qurl = query_url(SITE_SPEC_DB_ID) if SITE_SPEC_DB_ID else ""
+    if not qurl:
+        qurl = _search_query_url("サイトページ仕様")
+    if not qurl:
+        print("  サイト仕様: データソースが見つかりません（インテグレーションへの共有を確認してください）", file=sys.stderr)
+        _SITE_SPEC = spec
+        return spec
+    try:
+        rows = query_paginate(qurl)
+    except Exception as e:
+        print("  サイト仕様の取得に失敗: %s" % e, file=sys.stderr)
+        _SITE_SPEC = spec
+        return spec
+    for pg in rows:
+        pr = props(pg)
+        page = p_select(pr, "ページ") or ""
+        section = p_select(pr, "セクションID") or ""
+        if not page or not section:
+            continue
+        spec[(page, section)] = {
+            "eyebrow": p_text(pr, "英語ラベル"),
+            "heading": p_text(pr, "見出し"),
+            "lead": p_text(pr, "リード文"),
+            "body": p_text(pr, "本文(任意)"),
+            "images": p_files(pr, "画像"),
+            "color": p_text(pr, "テーマカラー(HEX)"),
+            "show": p_check(pr, "表示する"),
+        }
+    _SITE_SPEC = spec
+    print("  サイト仕様: %d 件読み込み" % len(spec))
+    return spec
+
+def _spec(page, section):
+    return _load_site_spec().get((page, section), {})
+
+def _theme_color_css():
+    c = (_spec("共通(全体)", "テーマ").get("color") or "").strip()
+    if not c:
+        return ""
+    return '<style>:root{--sfv-blue:%s !important;--sfv-blue-deep:%s !important;}</style>' % (c, c)
+
 def build_index(tpl_html):
     rows = query_db(SCHEDULE_DB_ID, sorts=[{"property": P["sc_date"], "direction": "ascending"}])
     programs = []
@@ -359,25 +413,32 @@ def build_index(tpl_html):
             f'<span class="nx-d">{ndate}</span>{_cat}'
             f'<span class="nx-t">{ntitle}</span></a></li>')
     _list = "".join(_items) if _items else '<li class="nx-empty">現在お知らせはありません。</li>'
+    _news_spec = _spec("トップ", "お知らせ")
+    _nk = html.escape(_news_spec.get("eyebrow") or "News")
+    _nt = html.escape(_news_spec.get("heading") or "お知らせ")
     _news_sec = (
         '<aside class="nx-news" id="news"><div class="nx-news-wrap">'
-        '<div class="nx-news-head"><span class="k">News</span><span class="t">お知らせ</span>'
+        f'<div class="nx-news-head"><span class="k">{_nk}</span><span class="t">{_nt}</span>'
         '<a class="nx-news-all" href="news/">一覧 →</a></div>'
         f'<ul class="nx-news-list">{_list}</ul>'
         '</div></aside>')
-    html_out = html_out.replace(
-        '<section class="sfv-section" id="concept">',
-        _news_sec + '<section class="sfv-section" id="concept">', 1)
+    if _news_spec.get("show", True):
+        html_out = html_out.replace(
+            '<section class="sfv-section" id="concept">',
+            _news_sec + '<section class="sfv-section" id="concept">', 1)
     _news_css = '<style>.nx-news{border-bottom:1px solid var(--sfv-line,rgba(0,0,0,.08));background:var(--sfv-card,#fff);}.nx-news-wrap{max-width:1120px;margin:0 auto;padding:20px clamp(16px,5vw,48px);}.nx-news-head{display:flex;align-items:baseline;gap:12px;margin-bottom:12px;}.nx-news-head .k{font-size:12px;letter-spacing:.12em;color:var(--sfv-blue,#3fa0d6);font-weight:700;text-transform:uppercase;}.nx-news-head .t{font-size:14px;font-weight:700;}.nx-news-all{margin-left:auto;font-size:13px;color:var(--sfv-blue,#3fa0d6);text-decoration:none;font-weight:600;}.nx-news-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}.nx-news-list li{margin:0;border-top:1px solid var(--sfv-line,rgba(0,0,0,.06));}.nx-news-list li:first-child{border-top:0;}.nx-news-list a{display:flex;align-items:baseline;gap:12px;text-decoration:none;color:inherit;padding:8px 0;font-size:14px;line-height:1.6;}.nx-news-list a:hover .nx-t{color:var(--sfv-blue,#3fa0d6);text-decoration:underline;}.nx-d{flex:0 0 auto;color:var(--sfv-ink-soft,#6b6b66);font-size:13px;font-variant-numeric:tabular-nums;min-width:84px;}.nx-c{flex:0 0 auto;font-size:11px;color:var(--sfv-blue-deep,#2f8fc6);border:1px solid var(--sfv-line,rgba(0,0,0,.14));border-radius:999px;padding:1px 9px;}.nx-t{flex:1 1 auto;}.nx-empty{color:var(--sfv-ink-soft,#6b6b66);font-size:14px;padding:8px 0;}@media(max-width:640px){.nx-d{min-width:0;}.nx-news-list a{flex-wrap:wrap;gap:4px 10px;}.nx-t{flex-basis:100%;}}</style>'
     html_out = html_out.replace("</head>", _news_css + "</head>", 1)
     # === Notio: トップページに「出展企業」セクションを追加（画像・タグ・業種付きカード） ===
     comp_pub = _exhibitor_published_rows()
-    if comp_pub:
+    _comp_spec = _spec("トップ", "出展企業")
+    if comp_pub and _comp_spec.get("show", True):
         _ccards = "".join(_company_card(pg, "companies/", "") for pg in comp_pub)
         _comp_filter = _facet_bar(comp_pub, exclude=("area", "industry"))
+        _ck = html.escape(_comp_spec.get("eyebrow") or "Exhibitors")
+        _ct = html.escape(_comp_spec.get("heading") or "出展企業")
         _comp_sec = (
             '<section class="nx-companies" id="companies"><div class="nx-comp-wrap">'
-            '<div class="nx-comp-head"><span class="k">Exhibitors</span><h2>出展企業</h2>'
+            f'<div class="nx-comp-head"><span class="k">{_ck}</span><h2>{_ct}</h2>'
             '<a class="nx-comp-all" href="companies/">すべて見る →</a></div>'
             f'{_comp_filter}'
             f'<div class="sfv-grid">{_ccards}</div>'
@@ -396,6 +457,13 @@ def build_index(tpl_html):
     html_out = html_out.replace("</head>", _theme_css + "</head>", 1)
     _ov_js = '<script>document.addEventListener("DOMContentLoaded",function(){try{var PS=new Date(2026,10,PERIOD_START),PE=new Date(2026,10,PERIOD_END);var t=new Date();var ws=weekStart(t);var we=new Date(ws.getFullYear(),ws.getMonth(),ws.getDate()+6);var inP=!(we<PS||ws>PE);state.view="week";state.ref=inP?t:PS;var vm=document.getElementById("viewMonth"),vw=document.getElementById("viewWeek");if(vm)vm.classList.remove("on");if(vw)vw.classList.add("on");render();}catch(e){}});</script>'
     html_out = html_out.replace("</body>", _ov_js + "</body>", 1)
+    # === Notio: サイト仕様（テーマカラー・ヒーロー日付ラベル） ===
+    _theme = _theme_color_css()
+    if _theme:
+        html_out = html_out.replace("</head>", _theme + "</head>", 1)
+    _hero = _spec("トップ", "ヒーロー")
+    if _hero.get("eyebrow"):
+        html_out = html_out.replace("2026.11.4 WED — 11.22 SUN", html.escape(_hero["eyebrow"]), 1)
     print(f"  スケジュール: {len(programs)} 件")
     return html_out
 
@@ -429,8 +497,13 @@ def build_news(tpl_html, head_html):
             f'<div class="sfv-meta">{html.escape(date)}</div>'
             f'<span class="sfv-tag">{html.escape(cat)}</span>'
             f'<h3>{html.escape(title)}</h3><p>{html.escape(summary)}</p></div></a>')
+    _nh = _spec("お知らせ一覧", "一覧ヘッダー")
+    _nt = html.escape(_nh.get("heading") or "News")
+    _nl = html.escape(_nh.get("lead") or "お知らせ・新着情報")
+    _nb = f'<figure class="sfv-hero"><img src="../{download_image(_nh["images"][0], "spec")}" alt=""></figure>' if _nh.get("images") else ""
     listing = (f'<a class="sfv-back" href="../index.html">← トップへ</a>'
-               f'<h1>News</h1><p class="lead">お知らせ・新着情報</p>'
+               f'<h1>{_nt}</h1><p class="lead">{_nl}</p>'
+               f'{_nb}'
                f'<div class="sfv-grid">{"".join(cards) or "<p>現在お知らせはありません。</p>"}</div>')
     write(OUT / "news" / "index.html", build_subpage(tpl_html, head_html, "News", listing))
     print(f"  お知らせ: {len(pub)} 件公開")
@@ -547,8 +620,13 @@ def build_companies(tpl_html, head_html):
         cards.append(_company_card(pg, "", "../"))
     # === Notio: 市町・エリア・業種・参加形態で絞り込めるタグリスト ===
     filter_bar = _facet_bar(pub)
+    _ch = _spec("出展企業一覧", "一覧ヘッダー")
+    _ct = html.escape(_ch.get("heading") or "出展企業")
+    _cl = html.escape(_ch.get("lead") or "瀬戸内ファクトリービュー2026 出展企業一覧")
+    _cb = f'<figure class="sfv-hero"><img src="../{download_image(_ch["images"][0], "spec")}" alt=""></figure>' if _ch.get("images") else ""
     listing = (f'<a class="sfv-back" href="../index.html">← トップへ</a>'
-               f'<h1>出展企業</h1><p class="lead">瀬戸内ファクトリービュー2026 出展企業一覧</p>'
+               f'<h1>{_ct}</h1><p class="lead">{_cl}</p>'
+               f'{_cb}'
                f'{filter_bar}'
                f'<div class="sfv-grid">{"".join(cards) or "<p>現在公開中の出展企業はありません。</p>"}</div>'
                f'{FILTER_JS}')
@@ -592,8 +670,13 @@ def build_factories(tpl_html, head_html):
             f'<a class="sfv-card" href="{slug}.html"><div class="ph" {ph}></div><div class="bd">'
             f'<span class="sfv-tag">{html.escape(area)}</span>'
             f'<h3>{html.escape(title)}</h3><p>{html.escape(summary)}</p></div></a>')
+    _fh = _spec("紹介ページ一覧", "一覧ヘッダー")
+    _ft = html.escape(_fh.get("heading") or "工場・イベント紹介")
+    _fl = html.escape(_fh.get("lead") or "参加工場と体験プログラムの紹介")
+    _fb = f'<figure class="sfv-hero"><img src="../{download_image(_fh["images"][0], "spec")}" alt=""></figure>' if _fh.get("images") else ""
     listing = (f'<a class="sfv-back" href="../index.html">← トップへ</a>'
-               f'<h1>工場・イベント紹介</h1><p class="lead">参加工場と体験プログラムの紹介</p>'
+               f'<h1>{_ft}</h1><p class="lead">{_fl}</p>'
+               f'{_fb}'
                f'<div class="sfv-grid">{"".join(cards) or "<p>現在紹介ページはありません。</p>"}</div>')
     write(OUT / "factories" / "index.html", build_subpage(tpl_html, head_html, "紹介ページ", listing))
     print(f"  紹介ページ: {len(pub)} 件公開")
@@ -709,6 +792,9 @@ def build_subpage(tpl_html, head_html, title, body_html):
     page = page.replace("__NAV__", nav)
     page = page.replace("__BODY__", body_html)
     page = page.replace("__FOOT__", foot)
+    _theme = _theme_color_css()
+    if _theme:
+        page = page.replace("</head>", _theme + "</head>", 1)
     return page
 
 
